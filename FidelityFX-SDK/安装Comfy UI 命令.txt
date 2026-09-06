@@ -1,0 +1,40 @@
+set-executionpolicy remotesigned  更改终端执行策略
+
+python --version  确认版本
+
+cd E:\AI\ComfyUI-AMD    进入目录
+
+ py -3.11 -m venv venv   创建虚拟环境
+
+
+.\venv\Scripts\activate   激活虚拟环境 出现（venv）前置
+deactivate 关闭虚拟环境
+
+pip list      查看pip版本
+
+将 ComfyUI 的 requirements.txt 更改为：numpy==1.26.4
+
+下载三个文件放到ComfyUI根目录
+
+    torch-2.7.0a0+rocm_git3f903c3-cp311-cp311-win_amd64.whl
+
+    torchaudio-2.7.0a0+52638ef-cp311-cp311-win_amd64.whl
+
+    torchvision-0.22.0+9eb57cd-cp311-cp311-win_amd64.whl
+
+
+这个地址下载安装三个 https://github.com/scottt/rocm-TheRock/releases/tag/v6.5.0rc-pytorch-gfx110x?ref=ai.rncz.net
+
+pip install "torch-2.7.0a0+rocm_git3f903c3-cp311-cp311-win_amd64.whl"
+
+pip install "torchaudio-2.7.0a0+52638ef-cp311-cp311-win_amd64.whl"
+
+pip install "torchvision-0.22.0+9eb57cd-cp311-cp311-win_amd64.whl"
+
+
+pip uninstall numpy   卸载错误版本2.3.1
+pip install -r ./ComfyUI/requirements.txt   安装所需的软件包
+
+启动项目可以添加
+python main.py --use-pytorch-cross-attention --fp16-vae 或者 --bf16-vae
+
