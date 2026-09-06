@@ -9,7 +9,7 @@
 
 // 【新增】引入 FSR 头文件
 #include <ffx_api.h>
-#include <ffx_fsr2.h>
+#include "ffx_api_loader.h"
 
 #ifdef _DEBUG
 #include <dxgidebug.h>
@@ -103,10 +103,15 @@ int main(int argc, char* argv[])
 
 	printf("Video was loaded successfully and contains %d frames in total.\n", (int)video.frame_infos.size());
 
-    // --- 【新增】在这里定义 FSR 所需的全局对象 ---
+    // --- 【修改】在这里定义 FSR 新版 API 所需的全局对象 ---
+    // 1. 定义 FSR API 接口（用于管理后端和模块加载）
     FfxInterface ffx_interface = {};
-    FfxFsr2Context fsr_context = {};
-    FfxFsr2Description fsr_description = {};
+    
+    // 2. 定义超分上下文（旧版 FfxFsr2Context -> 新版 FfxSuperResolutionContext）
+    FfxSuperResolutionContext fsr_context = {};
+    
+    // 3. 定义超分描述符（旧版 FfxFsr2Description -> 新版 FfxSuperResolutionDescription）
+    FfxSuperResolutionDescription fsr_description = {};
     // ------------------------------------------
 
 	// Below this will be all the DirectX 12 code:
@@ -676,25 +681,25 @@ int main(int argc, char* argv[])
 	};
 	create_swapchain();
 	
-    // --- 【新增开始】在这里初始化 FSR 上下文 ---
+        // --- 【修改开始】使用 FSR SDK 2.3.0 新版 API 初始化 FSR 上下文 ---
     {
-        // 1. 获取 FSR 后端接口
-        FfxErrorCode errorCode = ffxGetInterfaceDX12(&ffx_interface, device.Get(), ffxGetScratchMemorySizeDX12(0));
-        if (errorCode != FFX_OK) {
-            printf("Failed to get FFX DX12 interface! Error: %d\n", errorCode);
-            return -1;
-        }
+        // 1. 定义 FSR 后端描述符（DX12）
+        FfxCreateBackendDX12Desc createBackend = {};
+        createBackend.device = device.Get();
 
-        // 2. 配置 FSR 参数
-        fsr_description.flags = FFX_FSR2_ENABLE_AUTO_EXPOSURE; 
-        fsr_description.maxRenderSize.width = swapchain_width;
-        fsr_description.maxRenderSize.height = swapchain_height;
-        fsr_description.displaySize.width = swapchain_width;
-        fsr_description.displaySize.height = swapchain_height;
-        fsr_description.frameGeneration.multiplier = 1.0f;
-        
-        // 3. 创建 FSR 上下文
-        errorCode = ffxFsr2ContextCreate(&fsr_context, &fsr_description, &ffx_interface);
+        // 2. 定义超分（Upscale）的创建描述符
+        FfxCreateContextDescUpscale createUpscale = {};
+        createUpscale.maxRenderSize.width = swapchain_width;
+        createUpscale.maxRenderSize.height = swapchain_height;
+        createUpscale.displaySize.width = swapchain_width;
+        createUpscale.displaySize.height = swapchain_height;
+        createUpscale.flags = FFX_UPSCALE_ENABLE_AUTO_EXPOSURE;
+
+        // 3. 将后端描述符链接到超分描述符的链表中
+        createUpscale.header.pNext = &createBackend.header;
+
+        // 4. 调用新版统一 API 创建上下文
+        FfxErrorCode errorCode = ffxCreateContext(&fsr_context, &createUpscale.header, nullptr);
         if (errorCode != FFX_OK) {
             printf("Failed to create FSR context! Error: %d\n", errorCode);
             return -1;
@@ -702,8 +707,8 @@ int main(int argc, char* argv[])
         printf("FSR Context created successfully! Input: %dx%d, Output: %dx%d\n", 
                video.width, video.height, swapchain_width, swapchain_height);
     }
-    // --- 【新增结束】FSR 初始化完毕 ---
-
+    // --- 【修改结束】FSR 初始化完毕 ---
+	
 	// Do the display frame loop:
 	bool exiting = false;
 	while (!exiting)
@@ -1141,26 +1146,49 @@ int main(int argc, char* argv[])
 				graphics_cmd->ResourceBarrier(arraysize(barriers), barriers);
 				graphics_cmd->DiscardResource(swapchain_uav.Get(), nullptr); 
 
-				// 【新增开始】准备 FSR 调度参数并执行超分
-				FfxFsr2DispatchDescription dispatchDescription = {};
-				dispatchDescription.commandList = graphics_cmd.Get();
-				dispatchDescription.color = ffxGetResourceDX12(displayed_image.texture.Get(), L"NV12_Input", FFX_RESOURCE_STATE_COMPUTE_READ);
-				dispatchDescription.colorSubresource = 0; // 指向 NV12 的第 0 平面 (Luma)
-				dispatchDescription.output = ffxGetResourceDX12(swapchain_uav.Get(), L"FSR_Output", FFX_RESOURCE_STATE_UNORDERED_ACCESS);
-		
-				// 告诉 FSR 输入是 NV12 格式，它会自动处理 YUV 转 RGB
-				dispatchDescription.inputFormat = FFX_SURFACE_FORMAT_R8G8_UNORM; 
-		
-				// 暂时不使用光流和深度
-				dispatchDescription.motionVector = ffxGetResourceDX12(nullptr, nullptr, FFX_RESOURCE_STATE_UNORDERED_ACCESS); 
-				dispatchDescription.depth = ffxGetResourceDX12(nullptr, nullptr, FFX_RESOURCE_STATE_UNORDERED_ACCESS);       
-		
-				dispatchDescription.enableAutoExposure = true;
-				dispatchDescription.frameTimeUs = (uint64_t)(video.frame_infos[displayed_image.frame_index].duration_seconds * 1000000.0);
+				// --- 【修改开始】使用 FSR SDK 2.3.0 新版 API 执行超分 ---
+				{
+					// 1. 准备输入和输出资源的描述符
+					FfxResourceDescription inputDesc = {};
+					inputDesc.type = FFX_RESOURCE_TYPE_TEXTURE2D;
+					inputDesc.format = FFX_SURFACE_FORMAT_R8G8_UNORM;
+					inputDesc.width = video.width;
+					inputDesc.height = video.height;
 
-				// 执行 FSR 超分
-				ffxFsr2ContextDispatch(&fsr_context, &dispatchDescription);
-				// 【新增结束】FSR 调度完毕
+					FfxResourceDescription outputDesc = {};
+					outputDesc.type = FFX_RESOURCE_TYPE_TEXTURE2D;
+					outputDesc.format = FFX_SURFACE_FORMAT_R8G8B8A8_UNORM;
+					outputDesc.width = swapchain_width;
+					outputDesc.height = swapchain_height;
+
+					// 2. 创建 FSR 资源对象
+					FfxResource ffxInputColor = {};
+					ffxInputColor.resource = displayed_image.texture.Get();
+					ffxInputColor.description = inputDesc;
+					ffxInputColor.state = FFX_RESOURCE_STATE_COMPUTE_READ;
+
+					FfxResource ffxOutput = {};
+					ffxOutput.resource = swapchain_uav.Get();
+					ffxOutput.description = outputDesc;
+					ffxOutput.state = FFX_RESOURCE_STATE_UNORDERED_ACCESS;
+
+					// 3. 准备超分调度描述符
+					FfxDispatchDescUpscale dispatchDesc = {};
+					dispatchDesc.commandList = graphics_cmd.Get();
+					dispatchDesc.color = ffxInputColor;
+					dispatchDesc.output = ffxOutput;
+					dispatchDesc.renderSize.width = video.width;
+					dispatchDesc.renderSize.height = video.height;
+					dispatchDesc.frameTimeDelta = (float)(video.frame_infos[displayed_image.frame_index].duration_seconds * 1000.0f); // 毫秒
+					dispatchDesc.flags = FFX_UPSCALE_ENABLE_AUTO_EXPOSURE;
+
+					// 4. 执行超分
+					FfxErrorCode errorCode = ffxDispatch(&fsr_context, &dispatchDesc.header);
+					if (errorCode != FFX_OK) {
+						printf("Failed to dispatch FSR! Error: %d\n", errorCode);
+					}
+				}
+				// --- 【修改结束】FSR 调度完毕 ---
 
 				// 【修改】恢复输入纹理的状态，准备下一帧解码
 				// 注意：输出 swapchain_uav 保持 UAV 状态，因为紧接着下面还要 CopyResource，所以这里只恢复前两个 barrier
@@ -1168,7 +1196,7 @@ int main(int argc, char* argv[])
 				barriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
 				barriers[1].Transition.StateBefore = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 				barriers[1].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
-				graphics_cmd->ResourceBarrier(2, barriers); 
+				graphics_cmd->ResourceBarrier(2, barriers);
 	}
 
 		// Workaround the fact that we cannot render into swapchain from compute shader in DX12, instead we copy into it:
