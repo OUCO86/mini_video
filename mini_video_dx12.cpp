@@ -8,6 +8,7 @@
 // 【修改1】包含 version.dll 相关的头文件，以便使用其中的 API
 #include <VersionHelpers.h>
 
+
 #ifdef _DEBUG
 #include <dxgidebug.h>
 #endif // DEBUG
