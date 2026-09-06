@@ -2,8 +2,12 @@ name: Nightly Build
 
 on:
   schedule:
-    - cron: '0 0 * * *'
-  workflow_dispatch: # 开启网页手动启动按钮
+    - cron: '0 0 * * *'      # 每天 UTC 0点（北京时间早上8点）定时触发
+  workflow_dispatch:          # 允许在网页端手动触发
+  push:                       # 【建议增加】当向当前分支推送代码时触发
+    branches:
+      - fsr                   # 指定在 fsr 分支推送时触发
+      
 jobs:
   
   windows:
