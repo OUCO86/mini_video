@@ -6,7 +6,7 @@ on:
   workflow_dispatch:          # 允许在网页端手动触发
   push:                       # 【建议增加】当向当前分支推送代码时触发
     branches:
-      - fsr                   # 指定在 fsr 分支推送时触发
+      - FSR                   # 指定在 fsr 分支推送时触发
       
 jobs:
   
