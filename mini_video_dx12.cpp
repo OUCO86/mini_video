@@ -16,20 +16,68 @@
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"dxguid.lib")
 
+#include "include/common.h"
+
+#include <d3d12.h>
+#include <d3d12video.h>
+#include <dxgi1_6.h>
+#include <dxva.h>
+
+// 引入 Windows.h，因为我们需要用到 LoadLibrary 等系统 API
+#include <Windows.h> 
+
+#ifdef _DEBUG
+#include <dxgidebug.h>
+#endif // DEBUG
+
+#pragma comment(lib,"d3d12.lib")
+#pragma comment(lib,"dxgi.lib")
+#pragma comment(lib,"dxguid.lib")
+
 int main(int argc, char* argv[])
 {
-	// 【修改2】在程序最开始的地方，手动加载 version.dll
-    // 使用 L".\\version.dll" 强制程序优先加载 exe 当前目录下的 DLL
+    // 1. 加载 version.dll (您原有的成功代码)
     HMODULE hVersionDll = LoadLibraryW(L".\\version.dll");
     if (!hVersionDll)
     {
-        // 如果加载失败，打印出系统错误代码，方便您排查原因
         printf("Failed to load version.dll! Error Code: %lu\n", GetLastError());
         return -1;
     }
-
-    // 到这里，version.dll 就已经被成功加载到内存中了
     printf("version.dll loaded successfully!\n");
+
+    // 2. 【新增】加载 FSR 加载器 (Loader)
+    HMODULE hFsrLoader = LoadLibraryW(L".\\amd_fidelityfx_loader_dx12.dll");
+    if (!hFsrLoader)
+    {
+        printf("Failed to load amd_fidelityfx_loader_dx12.dll! Error Code: %lu\n", GetLastError());
+        // 如果 FSR 加载失败，您可以选择是否让程序继续运行，这里我们打印警告但不强制退出
+    }
+    else 
+    {
+        printf("FSR Loader loaded successfully!\n");
+    }
+
+    // 3. 【新增】加载 FSR 超分模块 (Upscaler)
+    HMODULE hFsrUpscaler = LoadLibraryW(L".\\amd_fidelityfx_upscaler_dx12.dll");
+    if (!hFsrUpscaler)
+    {
+        printf("Failed to load amd_fidelityfx_upscaler_dx12.dll! Error Code: %lu\n", GetLastError());
+    }
+    else 
+    {
+        printf("FSR Upscaler loaded successfully!\n");
+    }
+
+    // 4. 【新增】加载 FSR 帧生成模块 (Frame Generation) - 可选
+    HMODULE hFsrFrameGen = LoadLibraryW(L".\\amd_fidelityfx_framegeneration_dx12.dll");
+    if (!hFsrFrameGen)
+    {
+        printf("Failed to load amd_fidelityfx_framegeneration_dx12.dll! Error Code: %lu\n", GetLastError());
+    }
+    else 
+    {
+        printf("FSR Frame Generation loaded successfully!\n");
+    }
 
     // --- 以下是您原有的代码，保持不变 ---
 	if (argc < 2)
