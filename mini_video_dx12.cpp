@@ -8,15 +8,15 @@
 #include <Windows.h>
 
 // 1. 核心 API 和加载器
-#include "ffx_sdk/include/ffx_api.h"
-#include "ffx_sdk/include/ffx_api_loader.h"
-#include "ffx_sdk/include/ffx_fsr2.h" 
-#include "ffx_sdk/include/ffx_fsr3upscaler.h" // 如果您要用FSR3
+#include "api/include/ffx_api.h"
+#include "api/include/ffx_api_loader.h"
+#include "api/include/ffx_fsr2.h" 
+#include "api/include/ffx_fsr3upscaler.h" // 如果您要用FSR3
 
 // 2. 【非常重要】DX12 的后端实现文件
 // 新版 SDK 必须包含这个，否则无法在 DX12 下工作
-#include "ffx_sdk/include/dx12/ffx_dx12.h"
-#include "ffx_sdk/include/dx12/ffx_api_dx12.h"
+#include "api/include/dx12/ffx_dx12.h"
+#include "api/include/dx12/ffx_api_dx12.h"
 
 #ifdef _DEBUG
 #include <dxgidebug.h>
