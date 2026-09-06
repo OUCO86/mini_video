@@ -5,6 +5,9 @@
 #include <dxgi1_6.h>
 #include <dxva.h>
 
+// 【修改1】包含 version.dll 相关的头文件，以便使用其中的 API
+#include <VersionHelpers.h>
+
 #ifdef _DEBUG
 #include <dxgidebug.h>
 #endif // DEBUG
@@ -12,6 +15,10 @@
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"dxguid.lib")
+
+// 【修改2】添加这行代码，告诉链接器在编译时绑定 version.lib
+// 这样程序启动时就会自动加载 version.dll
+#pragma comment(lib, "version.lib")
 
 int main(int argc, char* argv[])
 {
