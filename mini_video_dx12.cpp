@@ -8,8 +8,11 @@
 #include <Windows.h>
 
 // 【新增】引入 FSR 头文件
-#include <ffx_api.h>
-#include "ffx_api_loader.h"
+#include "include/ffx_api.h" 
+#include "include/ffx_api_loader.h"
+
+// 如果代码里用到了 DX12 的特定后端接口（通常都会用到），可能还需要加上这个：
+#include "include/dx12/ffx_api_dx12.h"
 
 #ifdef _DEBUG
 #include <dxgidebug.h>
