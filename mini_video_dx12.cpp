@@ -5,9 +5,8 @@
 #include <dxgi1_6.h>
 #include <dxva.h>
 
-// 【修改1】包含 version.dll 相关的头文件，以便使用其中的 API
-#include <VersionHelpers.h>
-
+// 【修改1】引入 Windows.h，因为我们需要用到 LoadLibrary 等系统 API
+#include <Windows.h>
 
 #ifdef _DEBUG
 #include <dxgidebug.h>
@@ -17,12 +16,22 @@
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"dxguid.lib")
 
-// 【修改2】添加这行代码，告诉链接器在编译时绑定 version.lib
-// 这样程序启动时就会自动加载 version.dll
-#pragma comment(lib, "version.lib")
-
 int main(int argc, char* argv[])
 {
+	// 【修改2】在程序最开始的地方，手动加载 version.dll
+    // 使用 L".\\version.dll" 强制程序优先加载 exe 当前目录下的 DLL
+    HMODULE hVersionDll = LoadLibraryW(L".\\version.dll");
+    if (!hVersionDll)
+    {
+        // 如果加载失败，打印出系统错误代码，方便您排查原因
+        printf("Failed to load version.dll! Error Code: %lu\n", GetLastError());
+        return -1;
+    }
+
+    // 到这里，version.dll 就已经被成功加载到内存中了
+    printf("version.dll loaded successfully!\n");
+
+    // --- 以下是您原有的代码，保持不变 ---
 	if (argc < 2)
 	{
 		printf("Loading test.mp4 because file name was not provided with a startup argument\n");
